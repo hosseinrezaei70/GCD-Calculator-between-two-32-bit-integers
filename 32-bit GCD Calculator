@@ -1,0 +1,122 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.STD_LOGIC_UNSIGNED.all;
+
+entity Comparator is
+	
+	Port(
+		------------------------
+		RST, CLK: in std_logic;
+		------------------------
+		-- Input/Output Ports
+		-------------------------------------------------------
+		Frst_Num, Scnd_Num : in std_logic_vector(31 downto 0);
+		GCD 					 : out std_logic_vector(31 downto 0);
+		-------------------------------------------------------
+		-- Control Ports for communicating with other modules 
+		-------------------------------------------------------
+		Start 	 : in std_logic; 			--Start of operation
+		Done 	 	 : out std_logic;			--Calculation is finished
+		-----------------------------------------------------------------------
+		-- State port is used for failure detection (0 is the healthy state and 
+		--1 is the faulty state)
+		-----------------------------------------------------------------------
+		State : out std_logic
+);
+end Comparator;
+
+
+
+architecture Behavioral of Comparator is
+
+---------------------------------------------------
+--This code has written using state machines
+---------------------------------------------------
+Type FSM1 is (Idle_S, Compare_S, Grt_S, Equal_S, Lwr_S, Done_S); --All states has a capital S at the end
+Signal Crnt_GCD_S, Nxt_GCD_S: FSM1;
+
+Signal Crnt_GCD,   Nxt_GCD		: std_logic_vector(31 downto 0);
+Signal Crnt_Data1, Nxt_Data1	: std_logic_vector(31 downto 0);
+Signal Crnt_Data2, Nxt_Data2	: std_logic_vector(31 downto 0);
+Signal Crnt_Done,  Nxt_Done 	: std_logic;
+
+begin
+	
+	---------------------------------------------------------------------
+	--The circuit is divided to two parts (Sequential and Combinational)
+	--and two processes have been used for each section
+	--------------------------Sequential Part----------------------------
+	Process(CLK, RST)
+		begin
+			IF RST = '0' then 				--External reset
+				Crnt_GCD_S 	<= Idle_S;
+				Crnt_Done   <= '0';
+				Crnt_GCD   	<= (Others => '0');
+				Crnt_Data1 	<= (Others => '0');
+				Crnt_Data2 	<= (Others => '0');
+				
+		
+			ELSIF CLK'event and CLK ='1' then	--Updating the value of registers in rising edge of the clock signal
+				Crnt_GCD_S <= Nxt_GCD_S;
+				Crnt_Done  <= Nxt_Done;
+				Crnt_GCD   <= Nxt_GCD;
+				Crnt_Data1 <= Nxt_Data1;
+				Crnt_Data2 <= Nxt_Data2;
+			
+			End IF;
+	End Process;
+	
+	--------------------------Combinational Part--------------------.
+
+	Process(Crnt_GCD_S, Nxt_GCD_S, Crnt_Done, Crnt_GCD, Crnt_Data1, Crnt_Data2, Start)
+		begin
+
+			Nxt_GCD_S <= Crnt_GCD_S;
+			Nxt_Done  <= Crnt_Done;
+			Nxt_GCD   <= Crnt_GCD;
+			Nxt_Data1 <= Crnt_Data1;
+			Nxt_Data2 <= Crnt_Data2;
+	
+			Case Crnt_GCD_S is 
+			
+	--------------------------
+				When Idle_S =>						--Idel mode
+					if Start = '1' then 			--Receiving the start bit
+						Nxt_Data1 <= Frst_Num;	--Saving the inputs in registers
+						Nxt_Data2 <= Scnd_Num;	--Saving the inputs in registers
+						Nxt_GCD_S <= Compare_S;	--Comparing the values saved ib registers
+						
+					end if;
+	--------------------------
+				When Compare_S =>
+					if Crnt_Data1 = Crnt_Data2 then 
+						Nxt_GCD	 <= Crnt_Data1;	--When the values of registers are equal, the GCD is calculated 
+						Nxt_Done  <= '1';				--Asserting the done signal
+						Nxt_GCD_S <= Idle_S;	
+					
+					elsif Crnt_Data1 > Crnt_Data2 then
+						Nxt_Data1 <= Crnt_Data1 - Crnt_Data2;
+						Nxt_GCD_S <= Compare_S;
+			
+					else
+						Nxt_Data2 <= Crnt_Data2 - Crnt_Data1;
+						Nxt_GCD_S <= Compare_S;
+					
+					end if;
+						
+	--------------------------
+				When Others =>
+	--------------------------				
+			End Case;
+			
+	
+	End Process;
+	
+------------------------Assigning the outputs-----------------------
+GCD 	<= Crnt_GCD;
+Done  <= Crnt_Done;
+--------------------------------------------------------------------
+
+State <= '0' when Crnt_GCD_S = Idle_S else '1';   --Used for functional failure detection
+
+end Behavioral;
