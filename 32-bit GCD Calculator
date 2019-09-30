@@ -2,7 +2,7 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.STD_LOGIC_UNSIGNED.all;
 
-entity Comparator is
+entity GCD_Claculator is
 	
 	Port(
 		------------------------
@@ -23,11 +23,11 @@ entity Comparator is
 		-----------------------------------------------------------------------
 		State : out std_logic
 );
-end Comparator;
+end GCD_Claculator;
 
 
 
-architecture Behavioral of Comparator is
+architecture Behavioral of GCD_Claculator is
 
 ---------------------------------------------------
 --This code has written using state machines
